@@ -1,6 +1,7 @@
 # Python Training Course
 # Student: Semeniuk Pavlo
-# Task: Weather getter for specific city and date
+## Task on branch `main`: Weather getter for specific city and date
+## Task on branch `practice`: 22 practice tasks
 
 
 ## How to use it:
