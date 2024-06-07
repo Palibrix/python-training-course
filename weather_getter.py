@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 import pytz
+import requests
 
 from geopy.geocoders import Nominatim
 
@@ -10,10 +11,10 @@ import pandas as pd
 from openmeteo_requests.Client import OpenMeteoRequestsError
 
 
-def get_location(city):
+def get_location(_city):
     geolocator = Nominatim(user_agent="app_name")
-    location = geolocator.geocode(f"{city}")
-    return {"lat": location.latitude, "lon": location.longitude} if location else None
+    _location = geolocator.geocode(f"{_city}")
+    return {"lat": _location.latitude, "lon": _location.longitude} if _location else None
 
 
 def get_weather(point, start_time, end_time):
@@ -29,7 +30,7 @@ def get_weather(point, start_time, end_time):
     try:
         responses = openmeteo.weather_api(url, params=params)
         return responses[0]
-    except OpenMeteoRequestsError as e:
+    except (OpenMeteoRequestsError, requests.exceptions.HTTPError) as e:
         return e
 
 
@@ -129,27 +130,35 @@ def get_date_input(blank=False):
 
 if __name__ == '__main__':
     openmeteo = openmeteo_requests.Client()
-    location = None
-    while not location:
-        city = input('Enter city name: ')
-        location = get_location(city)
-        if not location:
-            print('Please provide correct city name')
-    start_date = get_date_input()
     while True:
-        end_date = get_date_input(blank=True)
-        if not end_date:
-            end_date = start_date
-            break
-        elif start_date + timedelta(days=7) >= end_date >= start_date:
-            break
-        else:
-            print("End date must be later than or equal to start date and be within 7 days after the start date. "
-                  "Please try again.")
+        location = None
+        while not location:
+            city = input('\nEnter city name (any caps) or 0 to exit: ')
+            if city == '0':
+                exit(0)
+            location = get_location(city)
+            if not location:
+                print('Please provide correct city name')
+            start_date = get_date_input()
+            while True:
+                end_date = get_date_input(blank=True)
+                if not end_date:
+                    end_date = start_date
+                    break
+                elif start_date + timedelta(days=7) >= end_date >= start_date:
+                    break
+                else:
+                    print("End date must be later than or equal to start date and be within 7 days after the start date. "
+                          "Please try again.")
 
-    weather = get_weather(location, start_date, end_date)
-    if weather.__class__ == OpenMeteoRequestsError:
-        print(weather.args[0]['reason'])
-    else:
-        table = form_table(weather)
-        print(table)
+            weather = get_weather(location, start_date, end_date)
+            if weather.__class__ == OpenMeteoRequestsError:
+                print(weather.args[0]['reason'])
+                print('Please try again.')
+                continue
+            elif weather.__class__ == requests.HTTPError:
+                print(weather)
+            else:
+                table = form_table(weather)
+                print(table)
+                location = None
